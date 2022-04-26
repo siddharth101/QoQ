@@ -107,6 +107,7 @@ def qgram_sat(filepath, window, value, plot=False, savedir=False):
     filename = str(gpstime) + '_H1L1.csv'
     
     if savedir:
-        dfL1H1.to_csv(savedir/'{}'.format(filename))
+        output_file = os.path.join(savedir, filename)
+        dfL1H1.to_csv(output_file)
 
     return dfL1H1, dfL1, dfH1
