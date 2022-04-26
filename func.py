@@ -4,6 +4,7 @@ import h5py
 import numpy as np
 import pandas as pd
 from gwpy.spectrogram import Spectrogram
+from matplotlib.ticker import FormatStrFormatter
 
 
 def get_data(filepath, ifo='L1'):
@@ -37,8 +38,9 @@ def qgram_sat(filepath, window, value, plot=False, savedir=False):
 
     print(q_data.keys())
     
+    imagename = str(gpstime) + '_H1L1.pdf'
 
-    if plot and q_data:
+    if plot and savedir and q_data:
         ifo_q = q_data.keys()
         plot, axes = plt.subplots(len(q_data), 1, sharey=True, sharex=True, figsize=(12, 4*len(q_data)))
         for i, ax in zip(ifo_q, axes.flatten()):
@@ -65,6 +67,7 @@ def qgram_sat(filepath, window, value, plot=False, savedir=False):
                   va='center', ha='center', rotation='vertical')
         cbar = axes[0].colorbar(clim=(0, 25), location='top')
         cbar.set_label(r"$\mathrm{Normalized \ energy}$")
+        plt.savefig(os.path.join(savedir, imagename))
 
 
     if q_data['L1'] and q_data['H1']:
