@@ -1,0 +1,20 @@
+[[package]]
+name = "retraction-scripts.utils"
+version = "0.1.0"
+description = "Utilities for retraction project"
+category = "main"
+optional = false
+python-versions = "^3.9"
+develop = true
+
+[package.source]
+type = "directory"
+url = "../../libs/utils"
+
+[metadata]
+lock-version = "1.1"
+python-versions = "^3.9"
+content-hash = "d1560ae1332ed97ffb565df6848bf0c86a408324226791f0d3200a68ddcf4ae1"
+
+[metadata.files]
+"retraction-scripts.utils" = []
