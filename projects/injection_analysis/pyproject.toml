@@ -1,0 +1,43 @@
+[tool.poetry]
+name = "injection_analysis"
+version = "0.1.0"
+description = "Analysis of O3 Replay injections using q saturation code"
+authors = ["ethan.marx <ethan.marx@ligo.org>"]
+license = "MIT"
+
+# this defines default values
+# for scripts wrapped in typeo decorator
+
+[tool.typeo]
+injection_xml_path = "/home/olib/public_html/Ethan/O3_replay_inj/injection_campaign_studies/lowlatency-replay-distributions/minSNR-4/injections-minSNR-4.hdf5"
+ifos = ['H1', 'L1']
+strain_channel = "GDS-CALIB_STRAIN_INJ1_O3Replay"
+state_channel = "GDS-CALIB_STATE_VECTOR"
+frame_type = "O3ReplayMDC_llhoft"
+science_mode_bitmask = 3
+window = 2
+offset = 63744000  
+snr_cut_low = 8
+snr_cut_high = 1e20
+m1_cut_low = 5
+m2_cut_low = 5
+fres = 0.05
+tres = 0.01
+sample_rate = 2048
+fmin = 10
+t_windows = [0.5, 1.0, 2.0]
+f_windows = [100, 512, 1024]
+threshold = 50
+store_raw = true
+out_dir = "${OUT_DIR}"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+"retraction_scripts.utils" = {path="../../libs/utils", develop = true}
+
+[tool.poetry.scripts]
+analyze_replay = "injection_analysis:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
