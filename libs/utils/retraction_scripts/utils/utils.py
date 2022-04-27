@@ -1,4 +1,3 @@
-import logging
 from typing import List
 
 import h5py
@@ -101,18 +100,15 @@ def query_q_data(
     frames = find_urls(
         site=ifo.strip("1"),
         frametype=f"{ifo}_{frame_type}",
-        gpsstart=int(time - 6 - 1),
-        gpsend=int(time + 6 + 1),
+        gpsstart=int(time - 20),
+        gpsend=int(time + 20),
         urltype="file",
         on_gaps="ignore",
     )
 
     # read strain from frames cache
     t = TimeSeries.read(
-        frames,
-        channel=f"{ifo}:{channel}",
-        start=time - 6,
-        end=time + 6,
+        frames, channel=f"{ifo}:{channel}", start=time - 6, end=time + 6, pad=0
     )
 
     t.times = t.times.value - time
@@ -146,7 +142,7 @@ def load_raw_data(filepath: str, ifo: str):
         with h5py.File(filepath, "r") as f:
             data = f["{}_q_data".format(ifo)]
     except KeyError:
-        logging.info(f"raw q data for {ifo} not stored in this file")
+        raise ValueError(f"raw q data for {ifo} not stored in this file")
 
     data_frame = pd.DataFrame(list(data))
     f = h5py.File(filepath, "r")
@@ -216,7 +212,7 @@ def calc_pixel_occupancy(
             df = pd.DataFrame(q_data[ifo])
 
         except KeyError:
-            logging.info(f"data for {ifo} not stored in q_data")
+            raise ValueError(f"raw q data for {ifo} not stored in this file")
 
         # dividing rows and columns of the dataframe
 
