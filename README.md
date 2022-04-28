@@ -13,7 +13,7 @@ This project analyzes the O3 MDC replay, producing pixel occupancy values for al
 This project analyzes pycbc offline background (timeslid) triggers from O3, similarly producing pixel occupancy values for all events with m1 and m2 greater than 5
 
 
-### Environment setup
+## Environment setup
 To start, in the root directory, create the base Conda environment on which all projects are based. This environment should be named `QoQ-base`
 
 ```
@@ -49,7 +49,7 @@ poetry install
 For projects that don't require conda, you should just need to run `poetry install` from the project's directory, and Poetry will take care of creating a virtual environment automatically.
 
 
-### Running projects
+## Running projects
 Once the environment for the project is properly set up,
 Commands can be run with custom arguments using Poetry:
 
@@ -64,7 +64,13 @@ To run the project with the default parameters specified in
 the `pyproject.toml`, run 
 
 ```console
-poetry run my-command --typeo .`
+poetry run my-command --typeo .
 ```
 
 the `--typeo` flag tells poetry to look in the `pyproject.toml` file under the `[tool.typeo]` table for the default parameters. These will then be passed to the function that `my-command` is mapped to in the `pyproject.toml` file.
+
+## Credits
+This project has been developed by Sidd Soni, Ethan Marx, and Erik Katsavounidis  
+
+Inspiration for using poetry and this project structure was taken from Alec Gunny's implementation in https://github.com/ML4GW
+further resources and documentation on these tools can be found there
