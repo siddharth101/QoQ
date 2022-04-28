@@ -26,7 +26,7 @@ Poetry is the dependency manager used and can be installed via
 ```
 curl -sSL https://install.python-poetry.org | python3 - --preview
 ```
-
+Due to the fact that several tools in the Python gravitational wave analysis ecosystem can only be installed via Conda (in particular the library GWpy uses to read and write .gwf files and the library it uses for reading archival data from the NDS2 server), some projects require both Poetry and Conda.  
 Projects that require Conda will have a `poetry.toml` file in them containing in part
 
 ```toml
@@ -54,7 +54,7 @@ Once the environment for the project is properly set up,
 Commands can be run with custom arguments using Poetry:
 
 ```console
-poetry run my-command --arg1 arg1 --arg2 arg2 `
+poetry run my-command --arg1 arg1 --arg2 arg2 
 ```
 
 The available commands for projects can be seen in the `pyproject.toml`
