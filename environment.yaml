@@ -1,4 +1,4 @@
-name: retraction-base 
+name: QoQ-base 
 channels:
   - conda-forge
   - pytorch
