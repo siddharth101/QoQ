@@ -1,26 +1,26 @@
 # QoQ (Q occupancy) project
 Project with the goal of reducing the number of retractions in O4
-using Q transform pixel occupancy values
+using an analysis of Q transform pixel occupancy values
 
 ## Project organization
-Project is divided into `libs`, modular source libraries for querying data, creating q transforms, calculating occupancy percentages, and `projects`, that are built off the libs.
+Project is divided into `libs`, modular source libraries for querying data, creating q transforms, calculating occupancy percentages, etc. and `projects`, that are built off the libs.
 
-### Current projects
-#### injection_analysis
+## Current projects
+### injection_analysis
 This project analyzes the O3 MDC replay, producing pixel occupancy values for all events with m1 and m2 greater than 5
 
-#### background_analysis
+### background_analysis
 This project analyzes pycbc offline background (timeslid) triggers from O3, similarly producing pixel occupancy values for all events with m1 and m2 greater than 5
 
 
 ### Environment setup
-To start, in the root directory, create the base Conda environment on which all projects are based
+To start, in the root directory, create the base Conda environment on which all projects are based. This environment should be named `QoQ-base`
 
-```console
+```
 conda env create -f environment.yaml
 ```
 
-Next, install Poetry
+Next, install Poetry  
 Poetry is the dependency manager used and can be installed via
 
 ```
@@ -53,7 +53,9 @@ For projects that don't require conda, you should just need to run `poetry insta
 Once the environment for the project is properly set up,
 Commands can be run with custom arguments using Poetry:
 
-`poetry run my-command --arg1 arg1 --arg2 arg2 `
+```console
+poetry run my-command --arg1 arg1 --arg2 arg2 `
+```
 
 The available commands for projects can be seen in the `pyproject.toml`
 file under the `[tool.poetry.scripts]` table.
@@ -61,6 +63,8 @@ file under the `[tool.poetry.scripts]` table.
 To run the project with the default parameters specified in 
 the `pyproject.toml`, run 
 
-`poetry run my-command --typeo .`
+```console
+poetry run my-command --typeo .`
+```
 
 the `--typeo` flag tells poetry to look in the `pyproject.toml` file under the `[tool.typeo]` table for the default parameters. These will then be passed to the function that `my-command` is mapped to in the `pyproject.toml` file.
