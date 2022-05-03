@@ -100,15 +100,20 @@ def query_q_data(
     frames = find_urls(
         site=ifo.strip("1"),
         frametype=f"{ifo}_{frame_type}",
-        gpsstart=int(time - 20),
-        gpsend=int(time + 20),
+        gpsstart=int(time - 7),
+        gpsend=int(time + 7),
         urltype="file",
         on_gaps="ignore",
     )
 
     # read strain from frames cache
     t = TimeSeries.read(
-        frames, channel=f"{ifo}:{channel}", start=time - 6, end=time + 6, pad=0
+        frames,
+        channel=f"{ifo}:{channel}",
+        start=time - 6,
+        end=time + 6,
+        pad=0,
+        nproc=3,
     )
 
     t.times = t.times.value - time
@@ -122,7 +127,6 @@ def query_q_data(
         fres=fres,
         whiten=True,
     )
-
     return q_data
 
 

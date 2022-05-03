@@ -9,9 +9,11 @@ license = "MIT"
 python = "^3.9"
 "retraction_scripts.utils" = {path="../../libs/utils", develop = true}
 
+[tool.poetry.group.dev.dependencies]
 
 # below table defines default values
 # for scripts wrapped in typeo decorator
+line-profiler = "^3.5.1"
 
 [tool.typeo]
 pycbc_data_dir = '/home/pycbc.offline/O3/production/O3A_FINAL/ALL_TRIGGER_FILES/HYPERBANK/STATMAP/'
