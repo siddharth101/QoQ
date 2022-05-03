@@ -1,4 +1,5 @@
 import glob
+import logging
 import os
 from typing import List
 
@@ -62,24 +63,18 @@ def process_one_pycbc_file(
     # indices that pass ifar threshold
     idxs = np.where(ifars > ifar_thresh)[0]
 
-    # get template ids for triggers that pass ifar thresh
+    # get template ids for all triggers
     template_ids = trigger_data["background_exc"]["template_id"]
-
-    times = {}
-    for ifo in ifos:
-        # get times, applying far threshold
-        times[ifo] = trigger_data["background_exc"][ifo]["time"]
 
     # number of events
     n_events = len(idxs)
 
-    print(
+    logging.info(
         f"Possibly generating q data for {n_events}, "
         " assuming all pass mass cuts"
     )
 
-    i = 0
-    # loop over events
+    # loop over idxs of events that pass far thresh
     for idx in idxs:
 
         # get template_id for this event
@@ -97,7 +92,7 @@ def process_one_pycbc_file(
         data = {}
         for ifo in ifos:
 
-            time = times[ifo][idx]
+            time = trigger_data["background_exc"][ifo]["time"][idx]
 
             q_data = query_q_data(
                 ifo,
@@ -114,8 +109,15 @@ def process_one_pycbc_file(
             # store in dict
             data[ifo] = q_data.value
 
-        out_file = os.path.join(out_dir, f"{i}_{ifo_str}.h5")
-        i += 1
+        # hard code file label as L1 time
+        # for some reason, the trigger_id column
+        # is different for H1 and L1
+        # not sure better option to use for now
+        file_label = round(
+            trigger_data["background_exc"]["L1"]["time"][idx], 2
+        )
+        out_file = os.path.join(out_dir, f"{file_label}_{ifo_str}.h5")
+
         # now, calculate pixel occupancy values
         pixel_occupancy = calc_pixel_occupancy(
             data,
@@ -140,7 +142,13 @@ def process_one_pycbc_file(
                 f.create_dataset(f"{ifo}_pixel_occ", data=pixel_occupancy[ifo])
 
                 # store trigger time for ifo
-                f.attrs.update({f"{ifo} time": times[ifo][i]})
+                f.attrs.update(
+                    {
+                        f"{ifo} time": trigger_data["background_exc"][ifo][
+                            "time"
+                        ][idx]
+                    }
+                )
 
             # store info to reproduce results
             f.attrs.update(

@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import List
 
@@ -62,7 +63,6 @@ def main(
         fres: frequency res for calculating q transform
         tres: time res for calcualting q transform
     """
-
     # load in xml file of injections
     events = h5py.File(injection_xml_path, "r")["events"][()]
 
@@ -87,6 +87,7 @@ def main(
     for ifo in ifos:
         os.makedirs(out_dir, exist_ok=True)
 
+    events = events[:2]
     # loop over events
     for event in events:
 
@@ -110,7 +111,7 @@ def main(
                     frame_type,
                 )
             except Exception as e:
-                print(e)
+                logging.error(e)
                 continue
 
             data[ifo] = None
@@ -136,7 +137,7 @@ def main(
                     good_ifos.append(ifo)
 
                 except Exception as e:
-                    print(e)
+                    logging.error(e)
                     continue
 
             # if we arent in science mode check next ifo
