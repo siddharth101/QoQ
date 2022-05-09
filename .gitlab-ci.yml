@@ -1,0 +1,20 @@
+stages:
+    - test
+
+default:
+  image: ghcr.io/ml4gw/pinto:main 
+
+include:
+  remote: 'https://gitlab.com/yesolutions/gitlab-ci-templates/raw/main/templates/pre-commit-autofix.yaml'
+
+injection-test:
+    stage: test
+    variables:
+        test_dir: $CI_PROJECT_DIR/projects/injection_analysis/ 
+    script: pinto run $test_dir pytest $test_dir/tests
+
+background-test:
+    stage: test
+    variables:
+        test_dir: $CI_PROJECT_DIR/projects/background_analysis/ 
+    script: pinto run $test_dir pytest $test_dir/tests
