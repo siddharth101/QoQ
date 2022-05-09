@@ -27,7 +27,6 @@ def process_one_pycbc_file(
     f_windows: List[float],
     t_windows: List[float],
     threshold: float,
-    store_raw: bool,
     out_dir: str,
 ):
     """Generates q transforms and pixel occupancy for
@@ -39,8 +38,6 @@ def process_one_pycbc_file(
         template_file:
             Path to mass template file corresponding to trigger file
         ifos: Which ifos to analyze
-        snr_cut_low: minimum single IFO snr of events
-        snr_cut_high: maximum single IFO snr of events
         m1_cut_low: minimum m1 to consider
         m2_cut_low: minimum m2 to consider
         window: half window of data to query for q transform
@@ -53,7 +50,6 @@ def process_one_pycbc_file(
 
     os.makedirs(out_dir, exist_ok=True)
 
-    ifo_str = "".join(ifos)
     trigger_data = h5py.File(trigger_file)
     template_data = h5py.File(template_file)
 
@@ -74,6 +70,28 @@ def process_one_pycbc_file(
         " assuming all pass mass cuts"
     )
 
+    # initiate arrays to store m1s, m2s, and ifars
+    m1s = []
+    m2s = []
+    ifars_out = []
+
+    # dict to store pixel occs;
+    # key is ifo
+    pixel_occupancies = {}
+
+    # dict to store q_data;
+    # key is ifo
+    q_data = {}
+
+    # dict to store trigger times
+    times = {}
+
+    # for each ifo inititate array
+    for ifo in ifos:
+        q_data[ifo] = []
+        pixel_occupancies[ifo] = []
+        times[ifo] = []
+
     # loop over idxs of events that pass far thresh
     for idx in idxs:
 
@@ -88,13 +106,20 @@ def process_one_pycbc_file(
         if m1 < m1_cut_low or m2 < m2_cut_low:
             continue
 
-        # dict to store data
-        data = {}
+        # append masses and ifar of event if all cuts are passed
+        m1s.append(m1)
+        m2s.append(m2)
+        ifars_out.append(ifars[idx])
+
         for ifo in ifos:
 
+            # get trigger time for this ifo
             time = trigger_data["background_exc"][ifo]["time"][idx]
 
-            q_data = query_q_data(
+            # append time
+            times[ifo].append(time)
+
+            data = query_q_data(
                 ifo,
                 time,
                 window,
@@ -107,63 +132,31 @@ def process_one_pycbc_file(
             )
 
             # store in dict
-            data[ifo] = q_data.value
+            q_data[ifo].append(data.value)
 
-        # hard code file label as L1 time
-        # for some reason, the trigger_id column
-        # is different for H1 and L1
-        # not sure better option to use for now
-        file_label = round(
-            trigger_data["background_exc"]["L1"]["time"][idx], 2
-        )
-        out_file = os.path.join(out_dir, f"{file_label}_{ifo_str}.h5")
-
-        # now, calculate pixel occupancy values
-        pixel_occupancy = calc_pixel_occupancy(
-            data,
-            fmin,
-            fres,
-            window,
-            threshold,
-            ifos,
-            f_windows,
-            t_windows,
-        )
-
-        # for each ifo in science mode store data
-        with h5py.File(out_file, "w") as f:
-            for ifo in ifos:
-
-                # if we want to store raw q data
-                if store_raw:
-                    f.create_dataset(f"{ifo}_q_data", data=data[ifo])
-
-                # store pixel occupancy values
-                f.create_dataset(f"{ifo}_pixel_occ", data=pixel_occupancy[ifo])
-
-                # store trigger time for ifo
-                f.attrs.update(
-                    {
-                        f"{ifo} time": trigger_data["background_exc"][ifo][
-                            "time"
-                        ][idx]
-                    }
-                )
-
-            # store info to reproduce results
-            f.attrs.update(
-                {
-                    "m1": m1,
-                    "m2": m2,
-                    "ifar": ifars[idx],
-                    "t_windows": t_windows,
-                    "f_windows": f_windows,
-                    "window": window,
-                    "fres": 0.05,
-                    "tres": 0.01,
-                    "fmin": fmin,
-                }
+            # calc pixel occ for this ifo
+            pixel_occupancy = calc_pixel_occupancy(
+                data,
+                fmin,
+                fres,
+                window,
+                threshold,
+                f_windows,
+                t_windows,
             )
+
+            # append pixel occ information
+            pixel_occupancies[ifo].append(pixel_occupancy)
+
+    for ifo in ifos:
+        pixel_occupancies[ifo] = np.array(pixel_occupancies[ifo])
+        times[ifo] = np.array(times[ifo])
+
+    m1s = np.array(m1s)
+    m2s = np.array(m2s)
+    ifars_out = np.array(ifars_out)
+
+    return pixel_occupancies, q_data, times, m1s, m2s, ifars_out
 
 
 @typeo
@@ -171,8 +164,6 @@ def main(
     pycbc_data_dir: str,
     pycbc_template_dir: str,
     ifos: List,
-    snr_cut_low: float,
-    snr_cut_high: float,
     m1_cut_low: float,
     m2_cut_low: float,
     ifar_thresh: float,
@@ -199,8 +190,6 @@ def main(
             Path to directory where corresponding
             pycbc mass templates are stroed
         ifos: Which ifos to analyze
-        snr_cut_low: minimum single IFO snr of events
-        snr_cut_high: maximum single IFO snr of events
         m1_cut_low: minimum m1 to consider
         m2_cut_low: minimum m2 to consider
         window: half window of data to query for q transform
@@ -213,9 +202,12 @@ def main(
 
     ifo_str = "".join(ifos)
 
+    # load in trigger files and template files from pycbc dirs
     trigger_files = glob.glob(pycbc_data_dir + ifo_str + "-EXCLUDE_ZEROLAG*")
     template_files = glob.glob(pycbc_template_dir + ifo_str + "*")
 
+    # sort trigger and template files (by time)
+    # so the first trigger file corresponds to first template file
     trigger_files = np.sort(trigger_files)
     template_files = np.sort(template_files)
 
@@ -225,8 +217,30 @@ def main(
             f" '{len(trigger_files)}' trigger_files"
         )
 
+    # initiate output data arrays/dicts
+    pixel_occupancies = {}
+    q_data = {}
+    times = {}
+
+    for ifo in ifos:
+        pixel_occupancies[ifo] = []
+        q_data[ifo] = []
+        times[ifo] = []
+
+    m1s = []
+    m2s = []
+    ifars = []
+
+    # loop over files, appending output to master arrays/dicts
     for trigger_file, template_file in zip(trigger_files, template_files):
-        process_one_pycbc_file(
+        (
+            pixel_occupancies_tmp,
+            q_data_tmp,
+            times_tmp,
+            m1s_tmp,
+            m2s_tmp,
+            ifars_tmp,
+        ) = process_one_pycbc_file(
             trigger_file,
             template_file,
             ifos,
@@ -245,6 +259,49 @@ def main(
             threshold,
             store_raw,
             out_dir,
+        )
+
+        m1s.append(m1s_tmp)
+        m2s.append(m2s_tmp)
+        ifars.append(ifars_tmp)
+
+        for ifo in ifos:
+            pixel_occupancies[ifo].append(pixel_occupancies_tmp[ifo])
+            q_data[ifo].append(q_data_tmp[ifo])
+            times[ifo].append(times_tmp[ifo])
+
+    out_file = os.path.join(out_dir, "background.h5")
+
+    # for each ifo in science mode store data
+    with h5py.File(out_file, "w") as f:
+        for ifo in ifos:
+            ifo_gr = f.create_group(ifo)
+
+            # if we want to store raw q data
+            if store_raw:
+                ifo_gr.create_dataset("q_data", data=q_data[ifo])
+
+            # store pixel occupancy values
+            ifo_gr.create_dataset("pixel_occ", data=pixel_occupancies[ifo])
+
+            # store trigger time
+            ifo_gr.create_dataset("times", data=times[ifo])
+
+        # store m1, m2, ifar
+        f.create_dataset("m1", data=m1s)
+        f.create_dataset("m2", data=m2s)
+        f.create_dataset("ifar", data=ifars)
+
+        # store q transform / q pixel occ info to reproduce results
+        f.attrs.update(
+            {
+                "t_windows": t_windows,
+                "f_windows": f_windows,
+                "window": window,
+                "fres": 0.05,
+                "tres": 0.01,
+                "fmin": fmin,
+            }
         )
 
 

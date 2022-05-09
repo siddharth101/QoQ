@@ -8,13 +8,14 @@ license = "MIT"
 [tool.poetry.dependencies]
 python = "^3.9"
 "retraction_scripts.utils" = {path="../../libs/utils", develop = true}
+pytest = "^7.1.2"
+"hermes.typeo" = "^0.1.4"
 
 [tool.poetry.group.dev.dependencies]
+line-profiler = "^3.5.1"
 
 # below table defines default values
 # for scripts wrapped in typeo decorator
-line-profiler = "^3.5.1"
-
 [tool.typeo]
 pycbc_data_dir = '/home/pycbc.offline/O3/production/O3A_FINAL/ALL_TRIGGER_FILES/HYPERBANK/STATMAP/'
 pycbc_template_dir = '/home/pycbc.offline/O3/production/O3A_FINAL/ALL_TRIGGER_FILES/HYPERBANK/BANK/'

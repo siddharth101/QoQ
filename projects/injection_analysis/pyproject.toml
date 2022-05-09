@@ -9,7 +9,7 @@ license = "MIT"
 # for scripts wrapped in typeo decorator
 
 [tool.typeo]
-injection_xml_path = "/home/olib/public_html/Ethan/O3_replay_inj/injection_campaign_studies/lowlatency-replay-distributions/minSNR-4/injections-minSNR-4.hdf5"
+injection_file = "/home/olib/public_html/Ethan/O3_replay_inj/injection_campaign_studies/lowlatency-replay-distributions/minSNR-4/injections-minSNR-4.hdf5"
 ifos = ['H1', 'L1']
 strain_channel = "GDS-CALIB_STRAIN_INJ1_O3Replay"
 state_channel = "GDS-CALIB_STATE_VECTOR"
@@ -34,6 +34,8 @@ out_dir = "${OUT_DIR}"
 [tool.poetry.dependencies]
 python = "^3.9"
 "retraction_scripts.utils" = {path="../../libs/utils", develop = true}
+"hermes.typeo" = "^0.1.4"
+pytest = "^7.1.2"
 
 [tool.poetry.scripts]
 analyze_replay = "injection_analysis:main"

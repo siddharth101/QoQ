@@ -169,12 +169,11 @@ def frac_above_threshold(df: pd.DataFrame, threshold: float):
 
 
 def calc_pixel_occupancy(
-    q_data: dict,
+    q_data: np.ndarray,
     fmin: float,
     fres: float,
     window: float,
     threshold: float,
-    ifos: List,
     f_windows: List[float] = [100, 512, 1024],
     t_windows: List[float] = [0.5, 1, 2],
 ):
@@ -183,17 +182,15 @@ def calc_pixel_occupancy(
 
     Args:
         q_data:
-            Dictionary where key is IFO and values is raw q_data
+            2d np.ndarray of q transform data
         fmin:
             minimum frequency of q_data
         fres:
             frequency resolution of q_data
         window:
-            time window
+            time half window
         threshold:
             Threshold to declare pixel "saturated"
-        ifos:
-            which ifos to calc saturation values for
         plot:
             bool to create plot
         savedir:
@@ -209,67 +206,60 @@ def calc_pixel_occupancy(
     t1, t2, t3 = t_windows
 
     # dict to store final pixel occupancy values
-    pixel_occupancy = {}
+    pixel_occupancy = []
 
-    for ifo in ifos:
-        try:
-            df = pd.DataFrame(q_data[ifo])
+    df = pd.DataFrame(q_data)
 
-        except KeyError:
-            raise ValueError(f"raw q data for {ifo} not stored in this file")
+    # dividing rows and columns of the dataframe
 
-        # dividing rows and columns of the dataframe
+    # get the center index of time dimension
+    center_time_idx = df.shape[0] // 2
 
-        # get the center index of time dimension
-        center_time_idx = df.shape[0] // 2
+    # number of indices in one second
+    len_one_sec = int(
+        df.shape[0] / (2 * window)
+    )  # window is actually a half window
 
-        # number of indices in one second
-        len_one_sec = int(
-            df.shape[0] / (2 * window)
-        )  # window is actually a half window
+    # get index values of frequency windows
+    f1_index, f2_index, f3_index = (
+        int((f1 - fmin) / fres),
+        int((f2 - fmin) / fres),
+        int((f3 - fmin) / fres),
+    )
 
-        # get index values of frequency windows
-        f1_index, f2_index, f3_index = (
-            int((f1 - fmin) / fres),
-            int((f2 - fmin) / fres),
-            int((f3 - fmin) / fres),
-        )
+    row_ind = [
+        int(len_one_sec * t1),
+        int(len_one_sec * t2),
+        int(len_one_sec * t3),
+    ]
+    freq_ind = [0, f1_index, f2_index, f3_index]
 
-        row_ind = [
-            int(len_one_sec * t1),
-            int(len_one_sec * t2),
-            int(len_one_sec * t3),
-        ]
-        freq_ind = [0, f1_index, f2_index, f3_index]
+    # create tuple of indices around center for each time window
+    row_inds = [(center_time_idx - i, center_time_idx + i) for i in row_ind]
 
-        # create tuple of indices around center for each time window
-        row_inds = [
-            (center_time_idx - i, center_time_idx + i) for i in row_ind
-        ]
+    # create tuple of indices for frequency windows
+    freq_inds = [
+        (freq_ind[i], freq_ind[i + 1]) for i in range(len(freq_ind) - 1)
+    ]
 
-        # create tuple of indices for frequency windows
-        freq_inds = [
-            (freq_ind[i], freq_ind[i + 1]) for i in range(len(freq_ind) - 1)
-        ]
+    above_thresh = []
 
-        above_thresh = []
+    # for each time, frequency window pair
+    for j in freq_inds:
+        for i in row_inds:
+            vals = frac_above_threshold(
+                df.iloc[i[0] : i[1], j[0] : j[1]], threshold
+            )
 
-        # for each time, frequency window pair
-        for j in freq_inds:
-            for i in row_inds:
-                vals = frac_above_threshold(
-                    df.iloc[i[0] : i[1], j[0] : j[1]], threshold
-                )
+            above_thresh.append(100 * vals)
 
-                above_thresh.append(100 * vals)
+    dftf = pd.DataFrame(
+        np.reshape(above_thresh, (3, 3)),
+        columns=["t1", "t2", "t3"],
+        index=["f1", "f2", "f3"],
+    )
 
-        dftf = pd.DataFrame(
-            np.reshape(above_thresh, (3, 3)),
-            columns=["t1", "t2", "t3"],
-            index=["f1", "f2", "f3"],
-        )
-
-        # store values
-        pixel_occupancy[ifo] = dftf.values
+    # flatten df values
+    pixel_occupancy = dftf.values.flatten()
 
     return pixel_occupancy

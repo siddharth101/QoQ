@@ -15,7 +15,7 @@ from retraction_scripts.utils import (
 
 @typeo
 def main(
-    injection_xml_path: str,
+    injection_file: str,
     ifos: List,
     offset: float,
     snr_cut_low: float,
@@ -37,11 +37,16 @@ def main(
     store_raw: bool,
     out_dir: str,
 ):
-    """Generate q_transforms for O3 replay mdc injections.
+    """Generate q transforms and calculate pixel occupancy values
+    for O3 replay mdc injections. Produces one output file.
+    Checks state vector for each ifo to ensure the detector is in science mode.
+    If in science mode, pixel occupancy values will be stored for that ifo.
+    This means that there will be an uneven number of H1 and L1 events
+    depending on how many are injected during science time for each ifo.
 
     Args:
-        injection_xml_path:
-            Path to the xml file used to generate the mdc's.
+        injection_file:
+            Path to the h5 file used to generate the mdc's.
             See https://git.ligo.org/shaon.ghosh/injection_campaign_studies/
             For the xml file used for O3 replay MDC
         ifos: Which ifos to analyze
@@ -64,7 +69,7 @@ def main(
         tres: time res for calcualting q transform
     """
     # load in xml file of injections
-    events = h5py.File(injection_xml_path, "r")["events"][()]
+    events = h5py.File(injection_file, "r")["events"][()]
 
     # apply snr and mass cuts
     events = events[
@@ -84,22 +89,35 @@ def main(
         )
     ]
 
-    for ifo in ifos:
-        os.makedirs(out_dir, exist_ok=True)
+    os.makedirs(out_dir, exist_ok=True)
 
-    events = events[:2]
+    q_data = {}
+    pixel_occupancies = {}
+    true_times = {}
+    replay_times = {}
+    event_info = {}
+
+    for ifo in ifos:
+        q_data[ifo] = []
+        pixel_occupancies[ifo] = []
+        replay_times[ifo] = []
+        true_times[ifo] = []
+        event_info[ifo] = []
+
+    out_file = os.path.join(out_dir, "injections.h5")
+
     # loop over events
     for event in events:
 
         # list to store ifos in science mode
         good_ifos = []
 
-        # dict to store data
-        data = {}
         for ifo in ifos:
 
             # convert to replay time
-            time = event[f'time_{ifo.strip("1")}'] + offset
+            true_time = event[f'time_{ifo.strip("1")}']
+            time = true_time + offset
+
             # check if we have good data for this ifo
             try:
                 good_data_bool = check_state_vector(
@@ -114,13 +132,12 @@ def main(
                 logging.error(e)
                 continue
 
-            data[ifo] = None
             # if this ifo is in science mode
             if good_data_bool:
 
                 try:
                     # make q gram
-                    q_data = query_q_data(
+                    data = query_q_data(
                         ifo,
                         time,
                         window,
@@ -131,10 +148,29 @@ def main(
                         tres,
                         fres,
                     )
-                    # store in dict
-                    data[ifo] = q_data.value
-                    # append ifo
-                    good_ifos.append(ifo)
+
+                    # calculate pixel occupancy values
+                    pixel_occupancy = calc_pixel_occupancy(
+                        q_data,
+                        fmin,
+                        fres,
+                        window,
+                        threshold,
+                        good_ifos,
+                        f_windows,
+                        t_windows,
+                    )
+
+                    # store q_data in master dict
+                    q_data[ifo].append(data.value)
+
+                    # store pixel_occ in master dict
+                    pixel_occupancies[ifo].append(pixel_occupancy)
+
+                    # store true time, replay time, and event info
+                    true_times[ifo].append(true_time)
+                    replay_times[ifo].append(time)
+                    event_info[ifo].append(event)
 
                 except Exception as e:
                     logging.error(e)
@@ -144,52 +180,37 @@ def main(
             elif not good_data_bool:
                 continue
 
-        # if no science mode ifos continue
-        if len(good_ifos) == 0:
-            continue
+    # for each ifo in science mode store data
+    with h5py.File(out_file, "w") as f:
+        for ifo in ifos:
+            ifo_gr = f.create_group(ifo)
 
-        # concat science mode ifos into str for file name
-        ifo_str = "".join(good_ifos)
+            # if we want to store raw q data
+            if store_raw:
+                ifo_gr.create_dataset("q_data", data=q_data[ifo])
 
-        out_file = os.path.join(out_dir, f"{int(time)}_{ifo_str}.h5")
+            # store pixel occupancy values
+            ifo_gr.create_dataset("pixel_occ", data=pixel_occupancies[ifo])
 
-        # now, calculate pixel occupancy values
-        pixel_occupancy = calc_pixel_occupancy(
-            data,
-            fmin,
-            fres,
-            window,
-            threshold,
-            good_ifos,
-            f_windows,
-            t_windows,
+            # store replay time, true time, and event info
+            # i.e. (injection parameters)
+            ifo_gr.create_dataset("replay time", data=replay_times[ifo])
+            ifo_gr.create_dataset("true time", data=true_times[ifo])
+            ifo_gr.create_dataset("event parameters", data=event_info[ifo])
+
+        # store q transform / q pixel occ info to reproduce results
+        f.attrs.update(
+            {
+                "t_windows": t_windows,
+                "f_windows": f_windows,
+                "window": window,
+                "fres": fres,
+                "tres": tres,
+                "fmin": fmin,
+            }
         )
 
-        # for each ifo in science mode store data
-        with h5py.File(out_file, "w") as f:
-            for ifo in good_ifos:
-
-                # if we want to store raw q data
-                if store_raw:
-                    f.create_dataset(f"{ifo}_q_data", data=data[ifo])
-
-                # store pixel occupancy values
-                f.create_dataset(f"{ifo}_pixel_occ", data=pixel_occupancy[ifo])
-
-            # store info to reproduce results
-            f.attrs.update(
-                {
-                    "t_windows": t_windows,
-                    "f_windows": f_windows,
-                    "window": window,
-                    "replay time": time,
-                    "true time": time - offset,
-                    "event": event,
-                    "fres": 0.05,
-                    "tres": 0.01,
-                    "fmin": fmin,
-                }
-            )
+    return out_file
 
 
 if __name__ == "__main__":
