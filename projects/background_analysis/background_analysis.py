@@ -6,8 +6,8 @@ from typing import List
 import h5py
 import numpy as np
 from hermes.typeo import typeo
-
-from retraction_scripts.utils import calc_pixel_occupancy, query_q_data
+from qoq.core import calc_pixel_occupancy, query_q_data
+from qoq.logging import configure_logging
 
 
 def process_one_pycbc_file(
@@ -27,7 +27,6 @@ def process_one_pycbc_file(
     f_windows: List[float],
     t_windows: List[float],
     threshold: float,
-    out_dir: str,
 ):
     """Generates q transforms and pixel occupancy for
         pycbc background trigger file
@@ -47,8 +46,6 @@ def process_one_pycbc_file(
         fres: frequency res for calculating q transform
         tres: time res for calcualting q transform
     """
-
-    os.makedirs(out_dir, exist_ok=True)
 
     trigger_data = h5py.File(trigger_file)
     template_data = h5py.File(template_file)
@@ -92,8 +89,13 @@ def process_one_pycbc_file(
         pixel_occupancies[ifo] = []
         times[ifo] = []
 
+    logging_cadence = 50
+
     # loop over idxs of events that pass far thresh
-    for idx in idxs:
+    for i, idx in enumerate(idxs):
+
+        if i % logging_cadence == 0:
+            logging.info(f"Completed analysis of {i} events")
 
         # get template_id for this event
         template_id = template_ids[idx]
@@ -133,7 +135,6 @@ def process_one_pycbc_file(
 
             # store in dict
             q_data[ifo].append(data.value)
-
             # calc pixel occ for this ifo
             pixel_occupancy = calc_pixel_occupancy(
                 data,
@@ -200,6 +201,11 @@ def main(
         tres: time res for calcualting q transform
     """
 
+    # configure logging
+    configure_logging(filename=os.path.join(out_dir, "log.log"))
+
+    os.makedirs(out_dir, exist_ok=True)
+
     ifo_str = "".join(ifos)
 
     # load in trigger files and template files from pycbc dirs
@@ -233,6 +239,8 @@ def main(
 
     # loop over files, appending output to master arrays/dicts
     for trigger_file, template_file in zip(trigger_files, template_files):
+        logging.info(f"Processing pycbc file: {trigger_file}")
+
         (
             pixel_occupancies_tmp,
             q_data_tmp,
@@ -257,32 +265,33 @@ def main(
             f_windows,
             t_windows,
             threshold,
-            store_raw,
-            out_dir,
         )
 
-        m1s.append(m1s_tmp)
-        m2s.append(m2s_tmp)
-        ifars.append(ifars_tmp)
+        m1s.extend(m1s_tmp)
+        m2s.extend(m2s_tmp)
+        ifars.extend(ifars_tmp)
 
         for ifo in ifos:
-            pixel_occupancies[ifo].append(pixel_occupancies_tmp[ifo])
-            q_data[ifo].append(q_data_tmp[ifo])
-            times[ifo].append(times_tmp[ifo])
+            pixel_occupancies[ifo].extend(pixel_occupancies_tmp[ifo])
+            q_data[ifo].extend(q_data_tmp[ifo])
+            times[ifo].extend(times_tmp[ifo])
 
     out_file = os.path.join(out_dir, "background.h5")
 
     # for each ifo in science mode store data
     with h5py.File(out_file, "w") as f:
         for ifo in ifos:
+
             ifo_gr = f.create_group(ifo)
 
             # if we want to store raw q data
             if store_raw:
-                ifo_gr.create_dataset("q_data", data=q_data[ifo])
+                ifo_gr.create_dataset("q_data", data=np.array(q_data[ifo]))
 
             # store pixel occupancy values
-            ifo_gr.create_dataset("pixel_occ", data=pixel_occupancies[ifo])
+            ifo_gr.create_dataset(
+                "pixel_occ", data=np.array(pixel_occupancies[ifo])
+            )
 
             # store trigger time
             ifo_gr.create_dataset("times", data=times[ifo])
@@ -298,8 +307,8 @@ def main(
                 "t_windows": t_windows,
                 "f_windows": f_windows,
                 "window": window,
-                "fres": 0.05,
-                "tres": 0.01,
+                "fres": fres,
+                "tres": tres,
                 "fmin": fmin,
             }
         )

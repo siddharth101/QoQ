@@ -33,7 +33,8 @@ out_dir = "${OUT_DIR}"
 
 [tool.poetry.dependencies]
 python = "^3.9"
-"retraction_scripts.utils" = {path="../../libs/utils", develop = true}
+"qoq.core" = {path="../../libs/core", develop = true}
+"qoq.logging" = {path = "../../libs/logging", develop = true}
 "hermes.typeo" = "^0.1.4"
 pytest = "^7.1.2"
 

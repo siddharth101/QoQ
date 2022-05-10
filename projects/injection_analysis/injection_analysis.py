@@ -5,12 +5,8 @@ from typing import List
 import h5py
 import numpy as np
 from hermes.typeo import typeo
-
-from retraction_scripts.utils import (
-    calc_pixel_occupancy,
-    check_state_vector,
-    query_q_data,
-)
+from qoq.core import calc_pixel_occupancy, check_state_vector, query_q_data
+from qoq.logging import configure_logging
 
 
 @typeo
@@ -68,6 +64,10 @@ def main(
         fres: frequency res for calculating q transform
         tres: time res for calcualting q transform
     """
+
+    # configure logging
+    configure_logging(filename=os.path.join(out_dir, "log.log"))
+
     # load in xml file of injections
     events = h5py.File(injection_file, "r")["events"][()]
 
@@ -104,13 +104,14 @@ def main(
         true_times[ifo] = []
         event_info[ifo] = []
 
+    logging_cadence = 50
     out_file = os.path.join(out_dir, "injections.h5")
 
     # loop over events
-    for event in events:
+    for i, event in enumerate(events):
 
-        # list to store ifos in science mode
-        good_ifos = []
+        if i % logging_cadence == 0:
+            logging.info(f"Completed analysis for {i} events")
 
         for ifo in ifos:
 
@@ -151,12 +152,11 @@ def main(
 
                     # calculate pixel occupancy values
                     pixel_occupancy = calc_pixel_occupancy(
-                        q_data,
+                        data,
                         fmin,
                         fres,
                         window,
                         threshold,
-                        good_ifos,
                         f_windows,
                         t_windows,
                     )
