@@ -60,7 +60,6 @@ def query_q_data(
     )
 
     t.times = t.times.value - time
-    print(t)
     # perform q transform
     q_data = t.q_transform(
         qrange=(4, 64),
