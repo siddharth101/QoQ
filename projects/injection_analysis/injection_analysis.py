@@ -180,6 +180,7 @@ def main(
             elif not good_data_bool:
                 continue
 
+    logging.info("Saving data to h5 file")
     # for each ifo in science mode store data
     with h5py.File(out_file, "w") as f:
         for ifo in ifos:

@@ -1,6 +1,8 @@
 import glob
 import logging
 import os
+from concurrent.futures import ProcessPoolExecutor
+from functools import partial
 from typing import List
 
 import h5py
@@ -11,8 +13,6 @@ from qoq.logging import configure_logging
 
 
 def process_one_pycbc_file(
-    trigger_file: str,
-    template_file: str,
     ifos: List,
     m1_cut_low: float,
     m2_cut_low: float,
@@ -27,6 +27,9 @@ def process_one_pycbc_file(
     f_windows: List[float],
     t_windows: List[float],
     threshold: float,
+    logging_cadence: int,
+    trigger_file: str,
+    template_file: str,
 ):
     """Generates q transforms and pixel occupancy for
         pycbc background trigger file
@@ -88,8 +91,6 @@ def process_one_pycbc_file(
         q_data[ifo] = []
         pixel_occupancies[ifo] = []
         times[ifo] = []
-
-    logging_cadence = 50
 
     # loop over idxs of events that pass far thresh
     for i, idx in enumerate(idxs):
@@ -180,6 +181,7 @@ def main(
     threshold: float,
     store_raw: bool,
     out_dir: str,
+    logging_cadence: int,
 ):
     """Generates q transform data and pixel occupancy values
        for pycbc triggers
@@ -201,10 +203,10 @@ def main(
         tres: time res for calcualting q transform
     """
 
+    os.makedirs(out_dir, exist_ok=True)
+
     # configure logging
     configure_logging(filename=os.path.join(out_dir, "log.log"))
-
-    os.makedirs(out_dir, exist_ok=True)
 
     ifo_str = "".join(ifos)
 
@@ -237,46 +239,58 @@ def main(
     m2s = []
     ifars = []
 
-    # loop over files, appending output to master arrays/dicts
-    for trigger_file, template_file in zip(trigger_files, template_files):
-        logging.info(f"Processing pycbc file: {trigger_file}")
+    # define function to pass to map
+    partial_process_func = partial(
+        process_one_pycbc_file,
+        ifos,
+        m1_cut_low,
+        m2_cut_low,
+        ifar_thresh,
+        window,
+        strain_channel,
+        frame_type,
+        sample_rate,
+        fmin,
+        fres,
+        tres,
+        f_windows,
+        t_windows,
+        threshold,
+        logging_cadence,
+    )
 
-        (
-            pixel_occupancies_tmp,
-            q_data_tmp,
-            times_tmp,
-            m1s_tmp,
-            m2s_tmp,
-            ifars_tmp,
-        ) = process_one_pycbc_file(
-            trigger_file,
-            template_file,
-            ifos,
-            m1_cut_low,
-            m2_cut_low,
-            ifar_thresh,
-            window,
-            strain_channel,
-            frame_type,
-            sample_rate,
-            fmin,
-            fres,
-            tres,
-            f_windows,
-            t_windows,
-            threshold,
-        )
+    logging.info("Submitting proceses to the pool")
 
-        m1s.extend(m1s_tmp)
-        m2s.extend(m2s_tmp)
-        ifars.extend(ifars_tmp)
+    # create pool as context manager
+    with ProcessPoolExecutor() as executor:
 
-        for ifo in ifos:
-            pixel_occupancies[ifo].extend(pixel_occupancies_tmp[ifo])
-            q_data[ifo].extend(q_data_tmp[ifo])
-            times[ifo].extend(times_tmp[ifo])
+        # loop over files, appending output to master arrays/dicts
+        for result in executor.map(
+            partial_process_func, trigger_files, template_files
+        ):
+
+            # unpack the result
+            (
+                pixel_occupancies_tmp,
+                q_data_tmp,
+                times_tmp,
+                m1s_tmp,
+                m2s_tmp,
+                ifars_tmp,
+            ) = result
+
+            m1s.extend(m1s_tmp)
+            m2s.extend(m2s_tmp)
+            ifars.extend(ifars_tmp)
+
+            for ifo in ifos:
+                pixel_occupancies[ifo].extend(pixel_occupancies_tmp[ifo])
+                q_data[ifo].extend(q_data_tmp[ifo])
+                times[ifo].extend(times_tmp[ifo])
 
     out_file = os.path.join(out_dir, "background.h5")
+
+    logging.info("Saving data to h5 file")
 
     # for each ifo in science mode store data
     with h5py.File(out_file, "w") as f:
