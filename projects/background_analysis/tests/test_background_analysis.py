@@ -105,8 +105,6 @@ def test_process_one_pycbc_file_produces_correct_event_shape(
             m2s,
             ifars,
         ) = process_one_pycbc_file(
-            trigger_file,
-            template_file,
             ifos,
             0,  # no cuts on m1, m2 or ifar so all events make it
             0,
@@ -121,6 +119,9 @@ def test_process_one_pycbc_file_produces_correct_event_shape(
             f_windows,
             t_windows,
             threshold,
+            100,
+            trigger_file,
+            template_file,
         )
 
     expected_shape = (n_events, len(t_windows) * len(f_windows))
@@ -175,8 +176,6 @@ def test_process_one_pycbc_file_produces_events_with_correct_cuts(
             m2s,
             ifars,
         ) = process_one_pycbc_file(
-            trigger_file,
-            template_file,
             ifos,
             m1_cut_low,
             m2_cut_low,
@@ -191,6 +190,9 @@ def test_process_one_pycbc_file_produces_events_with_correct_cuts(
             f_windows,
             t_windows,
             threshold,
+            100,
+            trigger_file,
+            template_file,
         )
 
     for ifo in ifos:
