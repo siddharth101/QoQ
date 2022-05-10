@@ -121,7 +121,6 @@ def test_process_one_pycbc_file_produces_correct_event_shape(
             f_windows,
             t_windows,
             threshold,
-            out_dir,
         )
 
     expected_shape = (n_events, len(t_windows) * len(f_windows))
@@ -192,7 +191,6 @@ def test_process_one_pycbc_file_produces_events_with_correct_cuts(
             f_windows,
             t_windows,
             threshold,
-            out_dir,
         )
 
     for ifo in ifos:
