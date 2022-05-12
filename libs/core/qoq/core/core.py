@@ -1,5 +1,7 @@
+from pathlib import Path
 from typing import List
 
+import h5py
 import numpy as np
 import pandas as pd
 from gwdatafind import find_urls
@@ -172,3 +174,62 @@ def calc_pixel_occupancy(
     pixel_occupancy = dftf.values.flatten()
 
     return pixel_occupancy
+
+
+def raw_data_dir_to_pixel_occ(
+    raw_data_dir: Path,
+    out_dir: Path,
+    out_file_label: str,
+    f_windows: List[float],
+    t_windows: List[float],
+    threshold: float,
+):
+    """
+    Takes a path to a data directory of individual
+    q data files produced by projects, and calculates pixel occupancy
+    values given frequency and time windows. Stores in one h5 file with
+    all relevant info about the events
+    """
+
+    out_file = out_dir / out_file_label
+
+    pixel_occs = []
+    # get all the files
+    files = raw_data_dir.glob("*")
+
+    # for each file
+    for file_path in files:
+        with h5py.File(file_path) as f:
+            # get q data
+            q_data = f["q_data"]
+            fmin = f.attrs["fmin"]
+            fres = f.attrs["fres"]
+            tres = f.attrs["tres"]
+            window = f.attrs["window"]
+
+        # calculate pixel occupancy values
+        pixel_occupancy = calc_pixel_occupancy(
+            q_data,
+            fmin,
+            fres,
+            window,
+            threshold,
+            f_windows,
+            t_windows,
+        )
+
+        pixel_occs.append(pixel_occupancy)
+
+    with h5py.File(out_file, "w") as f:
+        f.create_dataset("pixel_occs", data=pixel_occs)
+        f.attrs.update(
+            {
+                "f_windows": f_windows,
+                "t_windows": t_windows,
+                "fres": fres,
+                "threshold": threshold,
+                "window": window,
+                "fmin": fmin,
+                "tres": tres,
+            }
+        )

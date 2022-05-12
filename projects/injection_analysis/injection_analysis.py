@@ -1,5 +1,6 @@
 import logging
 import os
+import uuid
 from typing import List
 
 import h5py
@@ -202,7 +203,7 @@ def main(
                     # store q_data in single file
                     # along with event info, and q transform info
                     if store_raw:
-                        file_label = f"event_{i}.h5"
+                        file_label = str(uuid.uuid4()) + ".h5"
                         with h5py.File(
                             os.path.join(raw_data_dir[ifo], file_label), "w"
                         ) as f:
@@ -216,6 +217,7 @@ def main(
                                     "fres": fres,
                                     "tres": tres,
                                     "fmin": fmin,
+                                    "window": window,
                                 }
                             )
 

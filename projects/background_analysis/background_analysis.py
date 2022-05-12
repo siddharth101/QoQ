@@ -151,6 +151,7 @@ def process_one_pycbc_file(
                             "fres": fres,
                             "tres": tres,
                             "fmin": fmin,
+                            "window": window,
                         }
                     )
 
