@@ -203,13 +203,14 @@ def main(
                     # store q_data in single file
                     # along with event info, and q transform info
                     if store_raw:
-                        file_label = f"{int(time)}.h5"
+                        file_label = f"event_{i}.h5"
                         with h5py.File(
                             os.path.join(raw_data_dir[ifo], file_label), "w"
                         ) as f:
                             f.create_dataset("q_data", data=data.value)
                             f.attrs.update(
                                 {
+                                    "ifo": ifo,
                                     "event": event,
                                     "replay_time": time,
                                     "time": true_time,
