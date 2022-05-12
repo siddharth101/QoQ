@@ -17,7 +17,7 @@ def out_dir():
     data_dir = "tmp"
     os.makedirs(data_dir, exist_ok=True)
     yield Path(data_dir)
-    shutil.rmtree(data_dir)
+    shutil.rmtree(data_dir, ignore_errors=True)
 
 
 @pytest.fixture(params=[["H1", "L1"], ["H1"]])
@@ -121,7 +121,9 @@ def test_main_produces_expected_shape(injection_file, ifos, window, out_dir):
             t_windows,
             threshold,
             False,  # store raw
+            True,  # store pixel occ
             out_dir,
+            50,  # logging cadence
         )
 
     expected_shape = (n_events, len(t_windows) * len(f_windows))
@@ -197,7 +199,9 @@ def test_main_produces_events_with_correct_cuts(
             t_windows,
             threshold,
             False,  # store raw
+            True,  # store pixel occ
             out_dir,
+            50,  # logging cadence
         )
 
     with h5py.File(out_file) as f:

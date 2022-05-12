@@ -1,8 +1,10 @@
 import glob
 import logging
 import os
+import uuid
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
+from pathlib import Path
 from typing import List
 
 import h5py
@@ -28,17 +30,16 @@ def process_one_pycbc_file(
     t_windows: List[float],
     threshold: float,
     logging_cadence: int,
-    trigger_file: str,
-    template_file: str,
+    store_raw: bool,
+    store_pixel_occ: bool,
+    out_dir: Path,
+    trigger_file: Path,
+    template_file: Path,
 ):
     """Generates q transforms and pixel occupancy for
         pycbc background trigger file
 
     Args:
-        trigger_file:
-            Path to a pycbc file of background timeslides
-        template_file:
-            Path to mass template file corresponding to trigger file
         ifos: Which ifos to analyze
         m1_cut_low: minimum m1 to consider
         m2_cut_low: minimum m2 to consider
@@ -48,6 +49,14 @@ def process_one_pycbc_file(
         fmin: minimum frequency for calculating q transform
         fres: frequency res for calculating q transform
         tres: time res for calcualting q transform
+        f_windows: frequency windows for calculating pixel occ
+        t_windows: time windows for calculating pixel occ
+        threshold: snr threshold for declaring pixel saturated
+        logging_cadence: frequency to log progress
+        trigger_file:
+            Path to a pycbc file of background timeslides
+        template_file:
+            Path to mass template file corresponding to trigger file
     """
 
     trigger_data = h5py.File(trigger_file)
@@ -79,18 +88,17 @@ def process_one_pycbc_file(
     # key is ifo
     pixel_occupancies = {}
 
-    # dict to store q_data;
-    # key is ifo
-    q_data = {}
-
-    # dict to store trigger times
     times = {}
-
+    raw_data_dir = {}
     # for each ifo inititate array
     for ifo in ifos:
-        q_data[ifo] = []
-        pixel_occupancies[ifo] = []
-        times[ifo] = []
+        if store_raw:
+            raw_data_dir[ifo] = os.path.join(out_dir, "raw", ifo)
+            os.makedirs(raw_data_dir[ifo], exist_ok=True)
+
+        if store_pixel_occ:
+            pixel_occupancies[ifo] = []
+            times[ifo] = []
 
     # loop over idxs of events that pass far thresh
     for i, idx in enumerate(idxs):
@@ -109,18 +117,10 @@ def process_one_pycbc_file(
         if m1 < m1_cut_low or m2 < m2_cut_low:
             continue
 
-        # append masses and ifar of event if all cuts are passed
-        m1s.append(m1)
-        m2s.append(m2)
-        ifars_out.append(ifars[idx])
-
         for ifo in ifos:
 
             # get trigger time for this ifo
             time = trigger_data["background_exc"][ifo]["time"][idx]
-
-            # append time
-            times[ifo].append(time)
 
             data = query_q_data(
                 ifo,
@@ -133,32 +133,62 @@ def process_one_pycbc_file(
                 tres,
                 fres,
             )
+            # store in dict if store raw is true
+            if store_raw:
+                logging.info("storing q data")
+                file_label = str(uuid.uuid4()) + ".h5"
+                with h5py.File(
+                    os.path.join(raw_data_dir[ifo], file_label), "w"
+                ) as f:
+                    f.create_dataset("q_data", data=data.value)
+                    f.attrs.update(
+                        {
+                            "m1": m1,
+                            "m2": m2,
+                            "ifar": ifars[idx],
+                            "ifo": ifo,
+                            "time": time,
+                            "fres": fres,
+                            "tres": tres,
+                            "fmin": fmin,
+                        }
+                    )
 
-            # store in dict
-            q_data[ifo].append(data.value)
             # calc pixel occ for this ifo
-            pixel_occupancy = calc_pixel_occupancy(
-                data,
-                fmin,
-                fres,
-                window,
-                threshold,
-                f_windows,
-                t_windows,
-            )
+            if store_pixel_occ:
+                pixel_occupancy = calc_pixel_occupancy(
+                    data,
+                    fmin,
+                    fres,
+                    window,
+                    threshold,
+                    f_windows,
+                    t_windows,
+                )
 
-            # append pixel occ information
-            pixel_occupancies[ifo].append(pixel_occupancy)
+                # append pixel occ information
+                pixel_occupancies[ifo].append(pixel_occupancy)
+                # append time
+                times[ifo].append(time)
+                # append masses and ifar of event if all cuts are passed
+                m1s.append(m1)
+                m2s.append(m2)
+                ifars_out.append(ifars[idx])
 
-    for ifo in ifos:
-        pixel_occupancies[ifo] = np.array(pixel_occupancies[ifo])
-        times[ifo] = np.array(times[ifo])
+    # if store pixel occ, put all information in arrays
+    # to store in one file
+    if store_pixel_occ:
+        for ifo in ifos:
+            pixel_occupancies[ifo] = np.array(pixel_occupancies[ifo])
+            times[ifo] = np.array(times[ifo])
 
-    m1s = np.array(m1s)
-    m2s = np.array(m2s)
-    ifars_out = np.array(ifars_out)
+        m1s = np.array(m1s)
+        m2s = np.array(m2s)
+        ifars_out = np.array(ifars_out)
 
-    return pixel_occupancies, q_data, times, m1s, m2s, ifars_out
+        return pixel_occupancies, times, m1s, m2s, ifars_out
+
+    return
 
 
 @typeo
@@ -179,9 +209,10 @@ def main(
     f_windows: List[float],
     t_windows: List[float],
     threshold: float,
-    store_raw: bool,
-    out_dir: str,
-    logging_cadence: int,
+    store_raw: bool = True,
+    store_pixel_occ: bool = False,
+    out_dir: Path = "./data",
+    logging_cadence: int = 50,
 ):
     """Generates q transform data and pixel occupancy values
        for pycbc triggers
@@ -206,7 +237,7 @@ def main(
     os.makedirs(out_dir, exist_ok=True)
 
     # configure logging
-    configure_logging(filename=os.path.join(out_dir, "log.log"))
+    configure_logging(filename=os.path.join(out_dir, "log.log"), verbose=False)
 
     ifo_str = "".join(ifos)
 
@@ -231,9 +262,12 @@ def main(
     times = {}
 
     for ifo in ifos:
-        pixel_occupancies[ifo] = []
-        q_data[ifo] = []
-        times[ifo] = []
+        if store_pixel_occ:
+            pixel_occupancies[ifo] = []
+            times[ifo] = []
+
+        if store_raw:
+            q_data[ifo] = []
 
     m1s = []
     m2s = []
@@ -257,6 +291,9 @@ def main(
         t_windows,
         threshold,
         logging_cadence,
+        store_raw,
+        store_pixel_occ,
+        out_dir,
     )
 
     logging.info("Submitting proceses to the pool")
@@ -269,63 +306,57 @@ def main(
             partial_process_func, trigger_files, template_files
         ):
 
-            # unpack the result
-            (
-                pixel_occupancies_tmp,
-                q_data_tmp,
-                times_tmp,
-                m1s_tmp,
-                m2s_tmp,
-                ifars_tmp,
-            ) = result
+            # if calculate pixel occ, unpack result
+            if store_pixel_occ:
+                # unpack the result
+                (
+                    pixel_occupancies_tmp,
+                    times_tmp,
+                    m1s_tmp,
+                    m2s_tmp,
+                    ifars_tmp,
+                ) = result
 
-            m1s.extend(m1s_tmp)
-            m2s.extend(m2s_tmp)
-            ifars.extend(ifars_tmp)
+                m1s.extend(m1s_tmp)
+                m2s.extend(m2s_tmp)
+                ifars.extend(ifars_tmp)
 
+                for ifo in ifos:
+                    pixel_occupancies[ifo].extend(pixel_occupancies_tmp[ifo])
+                    times[ifo].extend(times_tmp[ifo])
+
+    if store_pixel_occ:
+        out_file = os.path.join(out_dir, "background.h5")
+
+        logging.info("Saving data to h5 file")
+
+        # for each ifo in science mode store data
+        with h5py.File(out_file, "w") as f:
             for ifo in ifos:
-                pixel_occupancies[ifo].extend(pixel_occupancies_tmp[ifo])
-                q_data[ifo].extend(q_data_tmp[ifo])
-                times[ifo].extend(times_tmp[ifo])
+                ifo_gr = f.create_group(ifo)
+                # store pixel occupancy values
+                ifo_gr.create_dataset(
+                    "pixel_occ", data=np.array(pixel_occupancies[ifo])
+                )
+                # store trigger time
+                ifo_gr.create_dataset("times", data=times[ifo])
 
-    out_file = os.path.join(out_dir, "background.h5")
+            # store m1, m2, ifar
+            f.create_dataset("m1", data=m1s)
+            f.create_dataset("m2", data=m2s)
+            f.create_dataset("ifar", data=ifars)
 
-    logging.info("Saving data to h5 file")
-
-    # for each ifo in science mode store data
-    with h5py.File(out_file, "w") as f:
-        for ifo in ifos:
-
-            ifo_gr = f.create_group(ifo)
-
-            # if we want to store raw q data
-            if store_raw:
-                ifo_gr.create_dataset("q_data", data=np.array(q_data[ifo]))
-
-            # store pixel occupancy values
-            ifo_gr.create_dataset(
-                "pixel_occ", data=np.array(pixel_occupancies[ifo])
+            # store q transform / q pixel occ info to reproduce results
+            f.attrs.update(
+                {
+                    "t_windows": t_windows,
+                    "f_windows": f_windows,
+                    "window": window,
+                    "fres": fres,
+                    "tres": tres,
+                    "fmin": fmin,
+                }
             )
-
-            # store trigger time
-            ifo_gr.create_dataset("times", data=times[ifo])
-
-        # store m1, m2, ifar
-        f.create_dataset("m1", data=m1s)
-        f.create_dataset("m2", data=m2s)
-        f.create_dataset("ifar", data=ifars)
-
-        # store q transform / q pixel occ info to reproduce results
-        f.attrs.update(
-            {
-                "t_windows": t_windows,
-                "f_windows": f_windows,
-                "window": window,
-                "fres": fres,
-                "tres": tres,
-                "fmin": fmin,
-            }
-        )
 
 
 if __name__ == "__main__":

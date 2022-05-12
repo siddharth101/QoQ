@@ -97,14 +97,7 @@ def test_process_one_pycbc_file_produces_correct_event_shape(
     )
 
     with mock_query_q_data, mock_calc_pixel_occ:
-        (
-            pixel_occupancies,
-            q_data,
-            times,
-            m1s,
-            m2s,
-            ifars,
-        ) = process_one_pycbc_file(
+        (pixel_occupancies, times, m1s, m2s, ifars,) = process_one_pycbc_file(
             ifos,
             0,  # no cuts on m1, m2 or ifar so all events make it
             0,
@@ -120,6 +113,9 @@ def test_process_one_pycbc_file_produces_correct_event_shape(
             t_windows,
             threshold,
             100,
+            False,  # store raw
+            True,  # calc + store pixel occ
+            out_dir,
             trigger_file,
             template_file,
         )
@@ -168,14 +164,7 @@ def test_process_one_pycbc_file_produces_events_with_correct_cuts(
     )
 
     with mock_query_q_data:
-        (
-            pixel_occupancies,
-            q_data,
-            times,
-            m1s,
-            m2s,
-            ifars,
-        ) = process_one_pycbc_file(
+        (pixel_occupancies, times, m1s, m2s, ifars,) = process_one_pycbc_file(
             ifos,
             m1_cut_low,
             m2_cut_low,
@@ -191,13 +180,15 @@ def test_process_one_pycbc_file_produces_events_with_correct_cuts(
             t_windows,
             threshold,
             100,
+            False,  # store raw
+            True,  # calc + store pixel occ
+            out_dir,
             trigger_file,
             template_file,
         )
 
     for ifo in ifos:
         assert ifo in pixel_occupancies.keys()
-        assert ifo in q_data.keys()
         assert ifo in times.keys()
 
     assert all(m1s > m1_cut_low)
