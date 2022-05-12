@@ -77,7 +77,7 @@ def main(
     """
 
     # configure logging
-    configure_logging(filename=os.path.join(out_dir, "log.log"), verbose=True)
+    configure_logging(filename=os.path.join(out_dir, "log.log"), verbose=False)
 
     # load in xml file of injections
     events = h5py.File(injection_file, "r")["events"][()]
@@ -205,12 +205,12 @@ def main(
                     if store_raw:
                         file_label = f"{int(time)}.h5"
                         with h5py.File(
-                            os.path.join(raw_data_dir[ifo], file_label)
+                            os.path.join(raw_data_dir[ifo], file_label), "w"
                         ) as f:
                             f.create_dataset("q_data", data=data.value)
                             f.attrs.update(
                                 {
-                                    "event_info": event_info,
+                                    "event": event,
                                     "replay_time": time,
                                     "time": true_time,
                                     "fres": fres,
