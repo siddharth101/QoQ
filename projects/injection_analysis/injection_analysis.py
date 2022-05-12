@@ -76,6 +76,7 @@ def main(
         out_dir: where to store data
     """
 
+    os.makedirs(out_dir, exist_ok=True)
     # configure logging
     configure_logging(filename=os.path.join(out_dir, "log.log"), verbose=False)
 
@@ -99,8 +100,6 @@ def main(
             events["mass1"] > m1_cut_low, events["mass2"] > m2_cut_low
         )
     ]
-
-    os.makedirs(out_dir, exist_ok=True)
 
     # create dictionaries to store data
     # initializing a list for each ifo
