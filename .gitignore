@@ -3,5 +3,5 @@
 **/.env
 .nfs*
 nohup.out
-*.ipynb
+**/*.ipynb
 **/data
