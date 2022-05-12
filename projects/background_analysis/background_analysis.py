@@ -1,6 +1,7 @@
 import glob
 import logging
 import os
+import uuid
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 from pathlib import Path
@@ -88,13 +89,13 @@ def process_one_pycbc_file(
     pixel_occupancies = {}
 
     times = {}
-
     raw_data_dir = {}
     # for each ifo inititate array
     for ifo in ifos:
         if store_raw:
             raw_data_dir[ifo] = os.path.join(out_dir, "raw", ifo)
             os.makedirs(raw_data_dir[ifo], exist_ok=True)
+
         if store_pixel_occ:
             pixel_occupancies[ifo] = []
             times[ifo] = []
@@ -135,7 +136,7 @@ def process_one_pycbc_file(
             # store in dict if store raw is true
             if store_raw:
                 logging.info("storing q data")
-                file_label = f"event_{i}.h5"
+                file_label = str(uuid.uuid4()) + ".h5"
                 with h5py.File(
                     os.path.join(raw_data_dir[ifo], file_label), "w"
                 ) as f:
