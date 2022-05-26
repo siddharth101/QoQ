@@ -5,6 +5,7 @@ import h5py
 import numpy as np
 import pandas as pd
 from gwdatafind import find_urls
+from gwpy.spectrogram import Spectrogram
 from gwpy.segments import Segment
 from gwpy.timeseries import TimeSeries
 
@@ -74,6 +75,18 @@ def query_q_data(
     return q_data
 
 
+def read_h5_data(filepath, tres=0.01, fres=0.05, fmin=10, ifo='L1'):
+    f = h5py.File(filepath, 'r')
+    datafr = pd.DataFrame(list(f['{}_q_data'.format(ifo)]))
+    spec = Spectrogram(datafr, dt=tres, df=fres, f0=fmin)
+    dur = np.round(spec.times.value[-1])  # duration
+    win = dur // 2
+    len_one_sec = int(1 / tres)
+    spec.times = np.linspace(-win, win, int(dur) * (len_one_sec))
+
+    return spec, win
+
+
 def frac_above_threshold(df: pd.DataFrame, threshold: float):
     frac = np.sum(df[df > threshold].count()) / np.sum(df.count())
     return frac
@@ -85,6 +98,7 @@ def calc_pixel_occupancy(
     fres: float,
     window: float,
     threshold: float,
+    mut_exc=False,
     f_windows: List[float] = [100, 512, 1024],
     t_windows: List[float] = [0.5, 1, 2],
 ):
@@ -120,38 +134,69 @@ def calc_pixel_occupancy(
     pixel_occupancy = []
 
     df = pd.DataFrame(q_data)
+    # Mutual Exclusive
+    if mut_exc:
+        # dividing rows and columns of the dataframe
+        a = df.shape[0] // 2  # center index
+        len_one_sec = int(df.shape[0] / (2 * window))  # int(1/0.01) 1/tres
+        b = window * len_one_sec  # window*1/0.01
+        c = int((b - len_one_sec // 2))
+        t_inds = np.arange(0, c, len_one_sec)
+        central_inds = [a - len_one_sec // 2, a + len_one_sec // 2]
+        row_ind_a = [central_inds[0] - j for j in t_inds[::-1]]
+        row_ind_b = [j + central_inds[1] for j in t_inds]
+        row_ind = row_ind_a + row_ind_b
+        row_ind.insert(0, 0)
+        row_ind.append(df.shape[0])
+        lrind = len(row_ind)
+        row_inds = [
+            (row_ind[i], row_ind[i + 1]) for i in range(lrind - 1)
+        ]
+        f1_index, f2_index, f3_index = (
+            int((f1 - fmin) / fres),
+            int((f2 - fmin) / fres),
+            int((f3 - fmin) / fres),
+        )
+        freq_ind = [0, f1_index, f2_index, f3_index]
+        lfind = len(freq_ind)
+        freq_inds = [
+            (freq_ind[i], freq_ind[i + 1]) for i in range(lfind - 1)
+        ]
+
+        lrinds, lfinds = len(row_inds), len(freq_inds)
 
     # dividing rows and columns of the dataframe
-
-    # get the center index of time dimension
-    center_time_idx = df.shape[0] // 2
+    else:
+        # get the center index of time dimension
+        center_time_idx = df.shape[0] // 2
 
     # number of indices in one second
-    len_one_sec = int(
-        df.shape[0] / (2 * window)
-    )  # window is actually a half window
+        len_one_sec = int(df.shape[0] / (2 * window))
+    # window is actually a half window
 
     # get index values of frequency windows
-    f1_index, f2_index, f3_index = (
-        int((f1 - fmin) / fres),
-        int((f2 - fmin) / fres),
-        int((f3 - fmin) / fres),
-    )
+        f1_index, f2_index, f3_index = (
+            int((f1 - fmin) / fres),
+            int((f2 - fmin) / fres),
+            int((f3 - fmin) / fres),
+        )
 
-    row_ind = [
-        int(len_one_sec * t1),
-        int(len_one_sec * t2),
-        int(len_one_sec * t3),
-    ]
-    freq_ind = [0, f1_index, f2_index, f3_index]
+        row_ind = [
+            int(len_one_sec * t1),
+            int(len_one_sec * t2),
+            int(len_one_sec * t3),
+        ]
+        freq_ind = [0, f1_index, f2_index, f3_index]
 
     # create tuple of indices around center for each time window
-    row_inds = [(center_time_idx - i, center_time_idx + i) for i in row_ind]
+        row_inds = [(center_time_idx - i,
+                     center_time_idx + i) for i in row_ind]
 
     # create tuple of indices for frequency windows
-    freq_inds = [
-        (freq_ind[i], freq_ind[i + 1]) for i in range(len(freq_ind) - 1)
-    ]
+        freq_inds = [
+            (freq_ind[i], freq_ind[i + 1]) for i in range(len(freq_ind) - 1)
+        ]
+    lrinds, lfinds = len(row_inds), len(freq_inds)
 
     above_thresh = []
 
@@ -159,17 +204,14 @@ def calc_pixel_occupancy(
     for j in freq_inds:
         for i in row_inds:
             vals = frac_above_threshold(
-                df.iloc[i[0] : i[1], j[0] : j[1]], threshold
+                df.iloc[i[0]:i[1], j[0]:j[1]], threshold
             )
 
-            above_thresh.append(100 * vals)
-
-    dftf = pd.DataFrame(
-        np.reshape(above_thresh, (3, 3)),
-        columns=["t1", "t2", "t3"],
-        index=["f1", "f2", "f3"],
-    )
-
+    above_thresh.append(100 * vals)
+    dftf = pd.DataFrame(np.reshape(above_thresh, (lfinds, lrinds)),
+                        columns=[
+                        't' + '{}'.format(i) for i in range(1, lrinds + 1)],
+                        index=['f1', 'f2', 'f3'])
     # flatten df values
     pixel_occupancy = dftf.values.flatten()
 
