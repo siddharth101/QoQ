@@ -196,8 +196,7 @@ def calc_pixel_occupancy(
         freq_inds = [
             (freq_ind[i], freq_ind[i + 1]) for i in range(len(freq_ind) - 1)
         ]
-    lrinds, lfinds = len(row_inds), len(freq_inds)
-
+        lrinds, lfinds = len(row_inds), len(freq_inds)
     above_thresh = []
 
     # for each time, frequency window pair
@@ -206,8 +205,7 @@ def calc_pixel_occupancy(
             vals = frac_above_threshold(
                 df.iloc[i[0]:i[1], j[0]:j[1]], threshold
             )
-
-    above_thresh.append(100 * vals)
+            above_thresh.append(100 * vals)
     dftf = pd.DataFrame(np.reshape(above_thresh, (lfinds, lrinds)),
                         columns=[
                         't' + '{}'.format(i) for i in range(1, lrinds + 1)],
