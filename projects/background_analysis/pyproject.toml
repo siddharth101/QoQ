@@ -9,11 +9,9 @@ license = "MIT"
 python = "^3.9"
 "qoq.core" = {path="../../libs/core", develop = true}
 "qoq.logging" = {path="../../libs/logging", develop = true}
-pytest = "^7.1.2"
-"hermes.typeo" = "^0.1.4"
+"hermes.typeo" = "^0.1.5"
 
 [tool.poetry.group.dev.dependencies]
-line-profiler = "^3.5.1"
 
 
 [tool.poetry.scripts]

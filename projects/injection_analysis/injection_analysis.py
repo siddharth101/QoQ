@@ -1,5 +1,6 @@
 import logging
 import uuid
+from pathlib import Path
 from typing import List
 
 import h5py
@@ -27,12 +28,12 @@ def main(
     fmin: float,
     fres: float,
     tres: float,
-    store_raw: bool = True,
-    store_pixel_occ: bool = False,
+    store_raw: bool,
+    store_pixel_occ: bool,
     f_windows: List[float] = None,
     t_windows: List[float] = None,
     threshold: float = 60,
-    out_dir: str = "./data",
+    out_dir: Path = "./data",
     logging_cadence: int = 50,
 ):
     """Generate q transforms and calculate pixel occupancy values
@@ -137,33 +138,34 @@ def main(
 
         # one file per event
         file_label = str(uuid.uuid4()) + ".h5"
-        with h5py.File(raw_data_dir.joinpath(file_label), "w") as f:
 
-            for ifo in ifos:
+        for ifo in ifos:
+            # convert to replay time
+            true_time = event[f'time_{ifo.strip("1")}']
+            time = true_time + offset
 
-                # convert to replay time
-                true_time = event[f'time_{ifo.strip("1")}']
-                time = true_time + offset
+            # check if we have good data for this ifo
+            try:
 
-                # check if we have good data for this ifo
-                try:
-                    good_data_bool = check_state_vector(
-                        ifo,
-                        state_channel,
-                        time,
-                        window,
-                        science_mode_bitmask,
-                        frame_type,
-                    )
+                good_data_bool = check_state_vector(
+                    ifo,
+                    state_channel,
+                    time,
+                    window,
+                    science_mode_bitmask,
+                    frame_type,
+                )
 
-                except Exception as e:
-                    logging.error(e)
-                    continue
+            except Exception as e:
+                logging.error(e)
+                continue
 
-                # if this ifo is in science mode
-                if good_data_bool:
+            # if this ifo is in science mode
+            if good_data_bool:
 
+                with h5py.File(raw_data_dir.joinpath(file_label), "a") as f:
                     try:
+
                         # make q gram
                         data = query_q_data(
                             ifo,
@@ -176,42 +178,42 @@ def main(
                             tres,
                             fres,
                         )
-
-                        # if we want to calc pixel occ for specified windows
-                        if store_pixel_occ:
-
-                            # calculate pixel occupancy values
-                            pixel_occupancy = calc_pixel_occupancy(
-                                data,
-                                fmin,
-                                fres,
-                                window,
-                                threshold,
-                                f_windows,
-                                t_windows,
-                            )
-
-                            # store pixel_occ and
-                            # other information in master dict
-                            pixel_occupancies[ifo].append(pixel_occupancy)
-                            event_info[ifo].append(event)
-
-                        # if we want to store raw q data
-                        # (typically should be true)
-                        # store q_data
-                        if store_raw:
-
-                            f.create_dataset(f"q_data_{ifo}", data=data.value)
-
                     except Exception as e:
                         logging.error(e)
                         continue
 
-                # if we arent in science mode check next ifo
-                elif not good_data_bool:
-                    continue
+                    # if we want to calc pixel occ for specified windows
+                    if store_pixel_occ:
+
+                        # calculate pixel occupancy values
+                        pixel_occupancy = calc_pixel_occupancy(
+                            data,
+                            fmin,
+                            fres,
+                            window,
+                            threshold,
+                            f_windows,
+                            t_windows,
+                        )
+
+                        # store pixel_occ and
+                        # other information in master dict
+                        pixel_occupancies[ifo].append(pixel_occupancy)
+                        event_info[ifo].append(event)
+
+                    # if we want to store raw q data
+                    # (typically should be true)
+                    # store q_data
+                    if store_raw:
+
+                        f.create_dataset(f"q_data_{ifo}", data=data.value)
+
+                        # if we arent in science mode check next ifo
+            elif not good_data_bool:
+                continue
 
             # update attributes with q transform info
+        with h5py.File(raw_data_dir.joinpath(file_label), "a") as f:
             # and event info
             f.attrs.update(
                 {
