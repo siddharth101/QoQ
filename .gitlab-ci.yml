@@ -8,7 +8,8 @@ variables:
     PRE_COMMIT_AUTO_FIX: "false"
 
 include:
-  remote: 'https://gitlab.com/yesolutions/gitlab-ci-templates/raw/main/templates/pre-commit-autofix.yaml'
+  - remote: 'https://gitlab.com/yesolutions/gitlab-ci-templates/raw/main/templates/pre-commit-autofix.yaml'
+  - template: 'Workflows/MergeRequest-Pipelines.gitlab-ci.yml'
 
 injection-test:
     stage: test
