@@ -4,6 +4,9 @@ stages:
 default:
   image: ghcr.io/ml4gw/pinto:main 
 
+variables:
+    PRE_COMMIT_AUTO_FIX: "false"
+
 include:
   remote: 'https://gitlab.com/yesolutions/gitlab-ci-templates/raw/main/templates/pre-commit-autofix.yaml'
 
