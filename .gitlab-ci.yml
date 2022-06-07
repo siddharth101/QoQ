@@ -15,10 +15,10 @@ injection-test:
     stage: test
     variables:
         test_dir: $CI_PROJECT_DIR/projects/injection_analysis/ 
-    script: pinto run $test_dir pytest $test_dir/tests
+    script: pinto -p $test_dir run pytest $test_dir/tests
 
 background-test:
     stage: test
     variables:
         test_dir: $CI_PROJECT_DIR/projects/background_analysis/ 
-    script: pinto run $test_dir pytest $test_dir/tests
+    script: pinto -p $test_dir run pytest $test_dir/tests
