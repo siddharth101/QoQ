@@ -10,6 +10,7 @@ python = "^3.9"
 "qoq.core" = {path="../../libs/core", develop = true}
 "qoq.logging" = {path="../../libs/logging", develop = true}
 "hermes.typeo" = "^0.1.5"
+h5py = "^3.7.0"
 
 [tool.poetry.group.dev.dependencies]
 
