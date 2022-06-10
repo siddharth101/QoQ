@@ -28,11 +28,11 @@ def main(
     fmin: float,
     fres: float,
     tres: float,
-    store_raw: bool,
-    store_pixel_occ: bool,
     f_windows: List[float] = None,
     t_windows: List[float] = None,
     threshold: float = 60,
+    store_raw: bool = True,
+    store_pixel_occ: bool = False,
     out_dir: Path = "./data",
     logging_cadence: int = 50,
 ):
@@ -68,12 +68,8 @@ def main(
         tres: time res for calcualting q transform
         f_windows: frequency windows with which to calculate pixel occ
         t_windows: time windows with which to calculate pixel occ
-        store_raw:
-            whether to save raw q data to disk. b/c we may change
-            the frequency/time windows used to calc pixel occ,
-            this flag should typically be set to true
-            so we don't have to constantly re-make the qscans
-        store_pixel_occ: whether to calculate and store pixel occupancy values
+
+        calc_pixel_occ: whether to calculate and store pixel occupancy values
         out_dir: where to store data
     """
 
@@ -108,15 +104,7 @@ def main(
     pixel_occupancies = {}
     event_info = {}
 
-    # TODO: function that takes raw data dir
-    # of indiviual q data files
-    # and converts to pixel occ values
-    # for specified frequency and time windows
     if store_raw:
-        # raw q data is large
-        # can't all fit in memory in python
-        # so if requested, store in individual files
-        logging.info("Storing raw q-data")
         raw_data_dir = out_dir.joinpath("raw")
         raw_data_dir.mkdir(parents=True, exist_ok=True)
 
@@ -163,56 +151,55 @@ def main(
             # if this ifo is in science mode
             if good_data_bool:
 
-                with h5py.File(raw_data_dir.joinpath(file_label), "a") as f:
-                    try:
+                try:
 
-                        # make q gram
-                        data = query_q_data(
-                            ifo,
-                            time,
-                            window,
-                            strain_channel,
-                            frame_type,
-                            sample_rate,
-                            fmin,
-                            tres,
-                            fres,
-                        )
-                    except Exception as e:
-                        logging.error(e)
-                        continue
+                    # make q gram
+                    data = query_q_data(
+                        ifo,
+                        time,
+                        window,
+                        strain_channel,
+                        frame_type,
+                        sample_rate,
+                        fmin,
+                        tres,
+                        fres,
+                    )
+                except Exception as e:
+                    logging.error(e)
+                    continue
 
-                    # if we want to calc pixel occ for specified windows
-                    if store_pixel_occ:
+                # if we want to calc pixel occ for specified windows
+                if store_pixel_occ:
 
-                        # calculate pixel occupancy values
-                        pixel_occupancy = calc_pixel_occupancy(
-                            data,
-                            fmin,
-                            fres,
-                            window,
-                            threshold,
-                            f_windows,
-                            t_windows,
-                        )
+                    # calculate pixel occupancy values
+                    pixel_occupancy = calc_pixel_occupancy(
+                        data,
+                        fmin,
+                        fres,
+                        window,
+                        threshold,
+                        f_windows,
+                        t_windows,
+                    )
 
-                        # store pixel_occ and
-                        # other information in master dict
-                        pixel_occupancies[ifo].append(pixel_occupancy)
-                        event_info[ifo].append(event)
+                    # store pixel_occ and
+                    # other information in master dict
+                    pixel_occupancies[ifo].append(pixel_occupancy)
+                    event_info[ifo].append(event)
 
-                    # if we want to store raw q data
-                    # (typically should be true)
-                    # store q_data
-                    if store_raw:
-
+                if store_raw:
+                    with h5py.File(
+                        raw_data_dir.joinpath(file_label), "a"
+                    ) as f:
                         f.create_dataset(f"q_data_{ifo}", data=data.value)
 
-                        # if we arent in science mode check next ifo
+                    # if we arent in science mode check next ifo
             elif not good_data_bool:
                 continue
 
-            # update attributes with q transform info
+    if store_raw:
+        # update attributes with q transform info
         with h5py.File(raw_data_dir.joinpath(file_label), "a") as f:
             # and event info
             f.attrs.update(
