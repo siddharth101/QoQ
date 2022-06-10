@@ -1,0 +1,70 @@
+[tool.pinto]
+steps = [
+    #"injection_analysis:analyze_replay",
+    "background_analysis:analyze_background",
+]
+
+[tool.typeo.base]
+ifos = ['H1', 'L1']
+sample_rate = 2048
+store_raw = true
+store_pixel_occ = false
+out_dir = "${OUT_DIR}"
+window = 2
+t_windows = [0.5, 1.0, 2.0]
+f_windows = [100, 512, 1024]
+threshold = 60
+fmin = 10
+fres = 0.05
+tres = 0.01
+m1_cut_low = 5
+m2_cut_low = 5
+
+[tool.typeo.scripts.analyze_replay]
+injection_file = "/home/olib/public_html/Ethan/O3_replay_inj/injection_campaign_studies/lowlatency-replay-distributions/minSNR-4/injections-minSNR-4.hdf5"
+ifos = "${base.ifos}" 
+offset = 63744000
+snr_cut_low = 5
+snr_cut_high = 1e20
+m1_cut_low = "${base.m1_cut_low}"
+m2_cut_low = "${base.m2_cut_low}"
+science_mode_bitmask = 3
+window = "${base.window}"
+strain_channel = "GDS-CALIB_STRAIN_INJ1_O3Replay"
+frame_type = "O3ReplayMDC_llhoft"
+sample_rate = "${base.sample_rate}" 
+state_channel = "GDS-CALIB_STATE_VECTOR"
+fres = "${base.fres}" 
+tres = "${base.tres}"
+fmin = "${base.fmin}" 
+t_windows = "${base.t_windows}" 
+f_windows = "${base.f_windows}"
+threshold = "${base.threshold}"
+store_raw = "${base.store_raw}"
+store_pixel_occ = "${base.store_pixel_occ}" 
+
+out_dir = "${base.out_dir}/injections/"
+logging_cadence = 50
+
+[tool.typeo.scripts.analyze_background]
+ifos = "${base.ifos}" 
+out_dir = "${base.out_dir}/background/"
+window = "${base.window}"
+fres = "${base.fres}" 
+tres = "${base.tres}"
+sample_rate = "${base.sample_rate}" 
+fmin = "${base.fmin}" 
+t_windows = "${base.t_windows}" 
+f_windows = "${base.f_windows}"
+threshold = "${base.threshold}"
+store_raw = "${base.store_raw}"
+store_pixel_occ = "${base.store_pixel_occ}"
+m1_cut_low = "${base.m1_cut_low}"
+m2_cut_low = "${base.m2_cut_low}"
+
+pycbc_data_dir = '/home/pycbc.offline/O3/production/O3A_FINAL/ALL_TRIGGER_FILES/HYPERBANK/STATMAP/'
+pycbc_template_dir = '/home/pycbc.offline/O3/production/O3A_FINAL/ALL_TRIGGER_FILES/HYPERBANK/BANK/'
+strain_channel = "DCS-CALIB_STRAIN_CLEAN_C01"
+frame_type = "HOFT_C01"
+ifar_thresh = 50 # years
+logging_cadence = 50

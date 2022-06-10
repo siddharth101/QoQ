@@ -116,10 +116,9 @@ def calc_pixel_occupancy(
             time half window
         threshold:
             Threshold to declare pixel "saturated"
-        plot:
-            bool to create plot
-        savedir:
-            where to save data
+        mut_exc:
+            Boolean that determines whether or not
+            windows are mutually exclusive or not
         f_windows:
             frequency values for creating windows
         t_windows:
@@ -134,8 +133,15 @@ def calc_pixel_occupancy(
     pixel_occupancy = []
 
     df = pd.DataFrame(q_data)
-    # Mutual Exclusive
+
+    # if calculating mutually exclusive
+    # (i.e. non overlapping)
+    # time windows
     if mut_exc:
+        # TODO: this is general in frequency,
+        # but not general in time. i.e. how long the
+        # mutually exclusive time windows are is not a parameter
+
         # dividing rows and columns of the dataframe
         a = df.shape[0] // 2  # center index
         len_one_sec = int(df.shape[0] / (2 * window))  # int(1/0.01) 1/tres

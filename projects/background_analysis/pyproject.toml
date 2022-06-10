@@ -9,36 +9,13 @@ license = "MIT"
 python = "^3.9"
 "qoq.core" = {path="../../libs/core", develop = true}
 "qoq.logging" = {path="../../libs/logging", develop = true}
-pytest = "^7.1.2"
-"hermes.typeo" = "^0.1.4"
+"hermes.typeo" = "^0.1.5"
+h5py = "^3.7.0"
 
 [tool.poetry.group.dev.dependencies]
-line-profiler = "^3.5.1"
+pytest = "^7.1.2"
 
-# below table defines default values
-# for scripts wrapped in typeo decorator
 
-[tool.typeo]
-pycbc_data_dir = '/home/pycbc.offline/O3/production/O3A_FINAL/ALL_TRIGGER_FILES/HYPERBANK/STATMAP/'
-pycbc_template_dir = '/home/pycbc.offline/O3/production/O3A_FINAL/ALL_TRIGGER_FILES/HYPERBANK/BANK/'
-ifos = ['H1', 'L1']
-strain_channel = "DCS-CALIB_STRAIN_CLEAN_C01"
-frame_type = "HOFT_C01"
-ifar_thresh = 50 # years
-window = 2
-m1_cut_low = 5
-m2_cut_low = 5
-fres = 0.05
-tres = 0.01
-sample_rate = 2048
-fmin = 10
-t_windows = [0.5, 1.0, 2.0]
-f_windows = [100, 512, 1024]
-threshold = 50
-store_raw = true
-store_pixel_occ = true
-out_dir = "${OUT_DIR}"
-logging_cadence = 50
 [tool.poetry.scripts]
 analyze_background = "background_analysis:main"
 

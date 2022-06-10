@@ -89,14 +89,12 @@ def process_one_pycbc_file(
     pixel_occupancies = {}
 
     times = {}
-    raw_data_dir = {}
-    # for each ifo inititate array
-    for ifo in ifos:
-        if store_raw:
-            raw_data_dir[ifo] = os.path.join(out_dir, "raw", ifo)
-            os.makedirs(raw_data_dir[ifo], exist_ok=True)
 
-        if store_pixel_occ:
+    raw_data_dir = out_dir.joinpath("raw")
+    raw_data_dir.mkdir(parents=True, exist_ok=True)
+
+    if store_pixel_occ:
+        for ifo in ifos:
             pixel_occupancies[ifo] = []
             times[ifo] = []
 
@@ -117,64 +115,70 @@ def process_one_pycbc_file(
         if m1 < m1_cut_low or m2 < m2_cut_low:
             continue
 
-        for ifo in ifos:
+        # create one file per event
+        file_label = str(uuid.uuid4()) + ".h5"
 
-            # get trigger time for this ifo
-            time = trigger_data["background_exc"][ifo]["time"][idx]
+        with h5py.File(raw_data_dir.joinpath(file_label), "w") as f:
+            for ifo in ifos:
 
-            data = query_q_data(
-                ifo,
-                time,
-                window,
-                strain_channel,
-                frame_type,
-                sample_rate,
-                fmin,
-                tres,
-                fres,
-            )
-            # store in dict if store raw is true
-            if store_raw:
-                logging.info("storing q data")
-                file_label = str(uuid.uuid4()) + ".h5"
-                with h5py.File(
-                    os.path.join(raw_data_dir[ifo], file_label), "w"
-                ) as f:
-                    f.create_dataset("q_data", data=data.value)
-                    f.attrs.update(
-                        {
-                            "m1": m1,
-                            "m2": m2,
-                            "ifar": ifars[idx],
-                            "ifo": ifo,
-                            "time": time,
-                            "fres": fres,
-                            "tres": tres,
-                            "fmin": fmin,
-                            "window": window,
-                        }
+                # get trigger time for this ifo
+                time = trigger_data["background_exc"][ifo]["time"][idx]
+
+                data = query_q_data(
+                    ifo,
+                    time,
+                    window,
+                    strain_channel,
+                    frame_type,
+                    sample_rate,
+                    fmin,
+                    tres,
+                    fres,
+                )
+                # store in dict if store raw is true
+                if store_raw:
+                    logging.info("storing raw q data")
+                    f.create_dataset(f"q_data_{ifo}", data=data.value)
+
+                # calc pixel occ for this ifo
+                # TODO: pixel occupancy function has changed
+                # is this still compatible?
+                if store_pixel_occ:
+                    pixel_occupancy = calc_pixel_occupancy(
+                        data,
+                        fmin,
+                        fres,
+                        window,
+                        threshold,
+                        f_windows,
+                        t_windows,
                     )
 
-            # calc pixel occ for this ifo
-            if store_pixel_occ:
-                pixel_occupancy = calc_pixel_occupancy(
-                    data,
-                    fmin,
-                    fres,
-                    window,
-                    threshold,
-                    f_windows,
-                    t_windows,
-                )
+                    # append pixel occ information
+                    pixel_occupancies[ifo].append(pixel_occupancy)
 
-                # append pixel occ information
-                pixel_occupancies[ifo].append(pixel_occupancy)
-                # append time
-                times[ifo].append(time)
-                # append masses and ifar of event if all cuts are passed
-                m1s.append(m1)
-                m2s.append(m2)
-                ifars_out.append(ifars[idx])
+                    # append time
+                    times[ifo].append(time)
+
+                    # append masses and ifar of event if all cuts are passed
+                    m1s.append(m1)
+                    m2s.append(m2)
+                    ifars_out.append(ifars[idx])
+
+            # update attributes about this event
+            f.attrs.update(
+                {
+                    "m1": m1,
+                    "m2": m2,
+                    "ifar": ifars[idx],
+                    "ifos": ifos,
+                    "time": time,
+                    "fres": fres,
+                    "tres": tres,
+                    "fmin": fmin,
+                    "window": window,
+                }
+            )
 
     # if store pixel occ, put all information in arrays
     # to store in one file
@@ -235,7 +239,7 @@ def main(
         tres: time res for calcualting q transform
     """
 
-    os.makedirs(out_dir, exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     # configure logging
     configure_logging(filename=os.path.join(out_dir, "log.log"), verbose=False)
@@ -327,7 +331,7 @@ def main(
                     times[ifo].extend(times_tmp[ifo])
 
     if store_pixel_occ:
-        out_file = os.path.join(out_dir, "background.h5")
+        out_file = out_dir.joinpath("background.h5")
 
         logging.info("Saving data to h5 file")
 

@@ -178,6 +178,7 @@ def test_main_produces_events_with_correct_cuts(
     )  # don't skip any events for any ifo
 
     with mock_query_q_data, mock_calc_pixel_occ, mock_check_state_vector:
+
         out_file = main(
             injection_file,
             ifos,
