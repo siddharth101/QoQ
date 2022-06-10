@@ -90,9 +90,8 @@ def process_one_pycbc_file(
 
     times = {}
 
-    if store_raw:
-        raw_data_dir = out_dir.joinpath("raw")
-        raw_data_dir.mkdir(parents=True, exist_ok=True)
+    raw_data_dir = out_dir.joinpath("raw")
+    raw_data_dir.mkdir(parents=True, exist_ok=True)
 
     if store_pixel_occ:
         for ifo in ifos:
