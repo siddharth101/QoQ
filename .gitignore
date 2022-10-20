@@ -4,4 +4,3 @@
 .nfs*
 nohup.out
 **/*.ipynb
-**/data
