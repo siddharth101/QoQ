@@ -75,6 +75,52 @@ def query_q_data(
     return q_data
 
 
+def query_mdc_frames(
+    ifo: str,
+    time: float,
+    window: float,
+    frame_dir: Path = Path(
+        "/home/shaon.ghosh/ANALYSIS/O4/analysis/DMTGen_stuff/frame_outputs"
+    ),
+):
+    """Queries the static (i.e. not streamed) MDC replay data, and returns frames
+    that contain data from time - window to time + window
+    """
+
+    # find frame files for this ifo
+    ifo_letter = ifo.strip("1")
+    ifo_dir = list(frame_dir.glob(f"{ifo_letter}*"))[0]
+    frames = ifo_dir.iterdir()
+
+    # set start and stop;
+    # include a 2 second buffer
+    start = time - window - 2
+    stop = time + window + 2
+
+    # output list of frames that
+    # contain requested data
+    paths = []
+
+    # loop over frames
+    # appending only those that
+    # contain requested data
+    for frame in frames:
+
+        frame_split = frame.name.split(".")[0].split("-")
+        frame_start, length = int(frame_split[-2]), int(frame_split[-1])
+
+        # frame does not contain requested time
+        if frame_start > stop or (frame_start + length) < start:
+
+            continue
+
+        # if any part of frame is in requested time
+        elif frame_start <= stop and (frame_start + length) >= start:
+            paths.append(str(frame))
+
+    return paths
+
+
 def read_h5_data(filepath, tres=0.01, fres=0.05, fmin=10, ifo="L1"):
     f = h5py.File(filepath, "r")
     datafr = pd.DataFrame(list(f["{}_q_data".format(ifo)]))

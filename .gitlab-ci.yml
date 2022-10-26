@@ -11,12 +11,6 @@ include:
   - remote: 'https://gitlab.com/yesolutions/gitlab-ci-templates/raw/main/templates/pre-commit-autofix.yaml'
   - template: 'Workflows/MergeRequest-Pipelines.gitlab-ci.yml'
 
-injection-test:
-    stage: test
-    variables:
-        test_dir: $CI_PROJECT_DIR/projects/injection_analysis/ 
-    script: pinto -p $test_dir run pytest $test_dir/tests
-
 background-test:
     stage: test
     variables:
