@@ -1,4 +1,4 @@
-name: qoq-base 
+name: qoq-base
 channels:
   - conda-forge
   - pytorch

@@ -17,20 +17,19 @@ threshold = 60
 fmin = 10
 fres = 0.05
 tres = 0.01
-m1_cut_low = 5
-m2_cut_low = 5
+m1_cut_low = 0
+m2_cut_low = 0
 
 [tool.typeo.scripts.analyze_replay]
 injection_file = "/home/olib/public_html/Ethan/O3_replay_inj/injection_campaign_studies/lowlatency-replay-distributions/minSNR-4/injections-minSNR-4.hdf5"
 ifos = "${base.ifos}" 
-offset = 63744000
 snr_cut_low = 5
 snr_cut_high = 1e20
 m1_cut_low = "${base.m1_cut_low}"
 m2_cut_low = "${base.m2_cut_low}"
 science_mode_bitmask = 3
 window = "${base.window}"
-strain_channel = "GDS-CALIB_STRAIN_INJ1_O3Replay"
+strain_channel = "GDS-CALIB_STRAIN_INJ1"
 frame_type = "O3ReplayMDC_llhoft"
 sample_rate = "${base.sample_rate}" 
 state_channel = "GDS-CALIB_STATE_VECTOR"
@@ -42,7 +41,7 @@ f_windows = "${base.f_windows}"
 threshold = "${base.threshold}"
 store_raw = "${base.store_raw}"
 store_pixel_occ = "${base.store_pixel_occ}" 
-
+frame_dir = "/home/shaon.ghosh/ANALYSIS/O4/analysis/DMTGen_stuff/frame_outputs"
 out_dir = "${base.out_dir}/injections/"
 logging_cadence = 50
 
